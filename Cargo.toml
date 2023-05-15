@@ -11,7 +11,7 @@ mailbox_rs = { git = "https://github.com/shady831213/mailbox_rs", features = ["s
 lazy_static = { version = "1"}
 shellexpand = { version = "3.1"}
 anyhow = "1"
-pyo3 = {version = "0.18", features = ["auto-initialize", "extension-module"], optional = true}
+pyo3 = {version = "0.18", optional = true}
 
 [build-dependencies]
 v_build_utils = {git = "https://github.com/shady831213/v_build_utils"}
