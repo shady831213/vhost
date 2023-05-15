@@ -1,0 +1,22 @@
+[package]
+name = "vhost"
+version = "0.1.0"
+edition = "2021"
+links = "vhost"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+mailbox_rs = { git = "https://github.com/shady831213/mailbox_rs", features = ["std"], optional = true}
+lazy_static = { version = "1"}
+shellexpand = { version = "3.1"}
+anyhow = "1"
+pyo3 = {version = "0.18", features = ["auto-initialize", "extension-module"], optional = true}
+
+[build-dependencies]
+v_build_utils = {git = "https://github.com/shady831213/v_build_utils"}
+
+[features]
+ptr64 = ["mailbox_rs/ptr64"]
+ptr32 = ["mailbox_rs/ptr32"]
+python = ["pyo3"]
