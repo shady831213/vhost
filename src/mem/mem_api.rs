@@ -1,6 +1,6 @@
 use super::common::{
-    DPIBankedMemHDLBuffers, DPIBankedShareMem, DPIBlackBoxShareMem, DPIDirectShareMem,
-    DPIMemHDLBuffer, DPIMemHDLBuffers, DPIShareMem, InitMethod,
+    DPIBankedShareMem, DPIBlackBoxShareMem, DPIDirectShareMem, DPIMemHDLBuffer, DPIShareMem,
+    InitMethod,
 };
 use mailbox_rs::{mb_rpcs::*, mb_std::*};
 
@@ -22,19 +22,19 @@ impl DPIMemHDLBuffer {
 }
 
 impl MBShareMem for DPIDirectShareMem {
-    fn write(&mut self, addr: MBPtrT, data: &[u8]) -> usize {
+    fn write(&mut self, _addr: MBPtrT, _data: &[u8]) -> usize {
         panic!("vhost mem api does not support DPIDirectShareMem!");
     }
-    fn read(&self, addr: MBPtrT, data: &mut [u8]) -> usize {
+    fn read(&self, _addr: MBPtrT, _data: &mut [u8]) -> usize {
         panic!("vhost mem api does not support DPIDirectShareMem!");
     }
 }
 
 impl MBShareMem for DPIBankedShareMem {
-    fn write(&mut self, addr: MBPtrT, data: &[u8]) -> usize {
+    fn write(&mut self, _addr: MBPtrT, _data: &[u8]) -> usize {
         panic!("vhost mem api does not support DPIBankedShareMem!");
     }
-    fn read(&self, addr: MBPtrT, data: &mut [u8]) -> usize {
+    fn read(&self, _addr: MBPtrT, _data: &mut [u8]) -> usize {
         panic!("vhost mem api does not support DPIBankedShareMem!");
     }
 }
