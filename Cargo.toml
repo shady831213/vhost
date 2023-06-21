@@ -20,3 +20,5 @@ v_build_utils = {git = "https://github.com/shady831213/v_build_utils"}
 ptr64 = ["mailbox_rs/ptr64"]
 ptr32 = ["mailbox_rs/ptr32"]
 python = ["pyo3"]
+mem_uvm = []
+mem_api = []
