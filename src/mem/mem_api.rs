@@ -5,8 +5,8 @@ use super::common::{
 use mailbox_rs::{mb_rpcs::*, mb_std::*};
 
 extern "C" {
-    fn vhsot_bb_mem_write(base: MBPtrT, addr: MBPtrT, data: *const u8, len: usize) -> usize;
-    fn vhsot_bb_mem_read(base: MBPtrT, addr: MBPtrT, data: *mut u8, len: usize) -> usize;
+    fn __vhsot_bb_mem_write(base: MBPtrT, addr: MBPtrT, data: *const u8, len: usize) -> usize;
+    fn __vhsot_bb_mem_read(base: MBPtrT, addr: MBPtrT, data: *mut u8, len: usize) -> usize;
 }
 
 impl DPIMemHDLBuffer {
@@ -41,10 +41,10 @@ impl MBShareMem for DPIBankedShareMem {
 
 impl MBShareMem for DPIBlackBoxShareMem {
     fn write(&mut self, addr: MBPtrT, data: &[u8]) -> usize {
-        unsafe { vhsot_bb_mem_write(self.base(), addr, data.as_ptr(), data.len()) }
+        unsafe { __vhsot_bb_mem_write(self.base(), addr, data.as_ptr(), data.len()) }
     }
     fn read(&self, addr: MBPtrT, data: &mut [u8]) -> usize {
-        unsafe { vhsot_bb_mem_read(self.base(), addr, data.as_mut_ptr(), data.len()) }
+        unsafe { __vhsot_bb_mem_read(self.base(), addr, data.as_mut_ptr(), data.len()) }
     }
 }
 
