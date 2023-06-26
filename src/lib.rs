@@ -51,13 +51,14 @@ pub fn mailbox_init<
     .build()
 }
 
-fn mb_tick() {
+fn mb_tick() -> bool {
     extern "C" {
         fn mb_step();
     }
     unsafe {
         mb_step();
     }
+    false
 }
 
 #[no_mangle]
@@ -93,9 +94,9 @@ pub fn mb_server_run<F: Fn(), F1: Fn(&MBSMServer<DPIShareMemSpace>)>(
     prepare: F,
     server_cb: F1,
 ) {
-    use mailbox_rs::mb_std::futures::future::join;
+    use mailbox_rs::mb_std::futures::future::{join, join_all};
     let w = mb.wake(mb_tick);
-    let s = mb.serve(server_cb);
+    let s = join_all(mb.serve(server_cb));
     prepare();
     println!("mb_server_run start!");
     async_std::task::block_on(async move {
@@ -108,9 +109,9 @@ pub fn mb_server_run_async<F: Fn(), F1: Fn(&MBSMServer<DPIShareMemSpace>)>(
     prepare: F,
     server_cb: F1,
 ) {
-    use mailbox_rs::mb_std::futures::future::join;
+    use mailbox_rs::mb_std::futures::future::{join, join_all};
     let w = mb.wake(mb_tick);
-    let s = mb.serve(server_cb);
+    let s = join_all(mb.serve(server_cb));
     prepare();
     println!("mb_server_run start!");
     async_std::task::spawn(async move {
