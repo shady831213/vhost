@@ -8,6 +8,7 @@ use mem::*;
 pub mod rpcs;
 pub mod sockets;
 use std::collections::HashMap;
+use std::future::Future;
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -89,33 +90,12 @@ unsafe extern "C" fn __mb_call(
     mb_sv_call(ch_name, method, arg_len, args, status)
 }
 
-pub fn mb_server_run<F: Fn(), F1: Fn(&MBSMServer<DPIShareMemSpace>)>(
+pub fn mb_server_run<F: Fn(&MBSMServer<DPIShareMemSpace>)>(
     mb: &VHostMb,
-    prepare: F,
-    server_cb: F1,
+    server_cb: F,
+) -> (
+    impl Future<Output = ()> + '_,
+    Vec<impl Future<Output = (String, u32)> + '_ + std::marker::Unpin>,
 ) {
-    use mailbox_rs::mb_std::futures::future::{join, join_all};
-    let w = mb.wake(mb_tick);
-    let s = join_all(mb.serve(server_cb));
-    prepare();
-    println!("mb_server_run start!");
-    async_std::task::block_on(async move {
-        join(w, s).await;
-    });
+    (mb.wake(mb_tick), mb.serve(move |server| server_cb(server)))
 }
-
-pub fn mb_server_run_async<F: Fn(), F1: Fn(&MBSMServer<DPIShareMemSpace>)>(
-    mb: &'static VHostMb,
-    prepare: F,
-    server_cb: F1,
-) {
-    use mailbox_rs::mb_std::futures::future::{join, join_all};
-    let w = mb.wake(mb_tick);
-    let s = join_all(mb.serve(server_cb));
-    prepare();
-    println!("mb_server_run start!");
-    async_std::task::spawn(async move {
-        join(w, s).await;
-    });
-}
-//__mb_exit(ch_name: *const std::os::raw::c_char, code: u32) should be impl project by project
