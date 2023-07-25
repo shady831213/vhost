@@ -90,12 +90,19 @@ unsafe extern "C" fn __mb_call(
     mb_sv_call(ch_name, method, arg_len, args, status)
 }
 
-pub fn mb_server_run<F: Fn(&MBSMServer<DPIShareMemSpace>)>(
-    mb: &VHostMb,
+pub fn mb_server_run<'a, B: Fn() -> bool + 'a, F: Fn(&MBSMServer<DPIShareMemSpace>)>(
+    mb: &'a VHostMb,
     server_cb: F,
+    waker_breaker: B,
 ) -> (
     impl Future<Output = ()> + '_,
     Vec<impl Future<Output = (String, u32)> + '_ + std::marker::Unpin>,
 ) {
-    (mb.wake(mb_tick), mb.serve(move |server| server_cb(server)))
+    (
+        mb.wake(move || {
+            mb_tick();
+            waker_breaker()
+        }),
+        mb.serve(move |server| server_cb(server)),
+    )
 }
