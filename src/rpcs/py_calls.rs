@@ -15,6 +15,12 @@ pub fn poll_py_call(
     let args = unsafe { std::slice::from_raw_parts(args, arg_len as usize) };
 
     Python::with_gil(|py| -> Result<(MBCallStatus, MBPtrT), String> {
+        // https://github.com/PyO3/pyo3/issues/1547
+        // https://pyo3.rs/v0.13.2/advanced.html
+        // https://docs.rs/pyo3/latest/pyo3/marker/struct.Python.html#method.new_pool
+        // guarantee py object free after this scope
+        let pool = unsafe { py.new_pool() };
+        let py = pool.python();
         let locals = [
             (intern!(py, "func_name"), method_str),
             (intern!(py, "id"), ch_name_str),
@@ -63,6 +69,12 @@ from pymb_rpcs import poll
 #[allow(dead_code)]
 pub fn py_tick() {
     Python::with_gil(|py| -> Result<(), String> {
+        // https://github.com/PyO3/pyo3/issues/1547
+        // https://pyo3.rs/v0.13.2/advanced.html
+        // https://docs.rs/pyo3/latest/pyo3/marker/struct.Python.html#method.new_pool
+        // guarantee py object free after this scope
+        let pool = unsafe { py.new_pool() };
+        let py = pool.python();
         let err_handle = |e: PyErr| -> String {
             e.print(py);
             format!("{}: {}", e.get_type(py), e.value(py))
@@ -85,6 +97,12 @@ pub fn py_tick() {
 #[allow(dead_code)]
 pub fn py_calls_init() {
     if Python::with_gil(|py| -> Result<(), String> {
+        // https://github.com/PyO3/pyo3/issues/1547
+        // https://pyo3.rs/v0.13.2/advanced.html
+        // https://docs.rs/pyo3/latest/pyo3/marker/struct.Python.html#method.new_pool
+        // guarantee py object free after this scope
+        let pool = unsafe { py.new_pool() };
+        let py = pool.python();
         let err_handle = |e: PyErr| -> String {
             e.print(py);
             format!("{}: {}", e.get_type(py), e.value(py))
