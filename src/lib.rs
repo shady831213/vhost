@@ -95,8 +95,8 @@ pub fn mb_server_run<'a, B: Fn() -> bool + 'a, F: Fn(&MBSMServer<DPIShareMemSpac
     server_cb: F,
     waker_breaker: B,
 ) -> (
-    impl Future<Output = ()> + '_,
-    Vec<impl Future<Output = (String, u32)> + '_ + std::marker::Unpin>,
+    impl Future<Output = ()> + use<'a, B, F>,
+    Vec<impl Future<Output = (String, u32)> + use<'a, B, F> + std::marker::Unpin>,
 ) {
     (
         mb.wake(move || {
