@@ -90,14 +90,14 @@ class MbBBMemFactory;
       mems[mem.name] = mem;
    endfunction
 
-   function void write(string name, int unsigned addr, byte unsigned data);
+   function void write(string name, `MB_PTR addr, byte unsigned data);
       if (!this.mems.exists(name)) begin
          `uvm_fatal("MbBBMemFactory", $sformatf("%s does not exist!", name));
       end
       mems[name].write(addr, data);
    endfunction
 
-   function void read(string name, int unsigned addr, output byte unsigned data);
+   function void read(string name, `MB_PTR addr, output byte unsigned data);
       if (!this.mems.exists(name)) begin
          `uvm_fatal("MbBBMemFactory", $sformatf("%s does not exist!", name));
       end
