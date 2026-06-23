@@ -12,10 +12,10 @@ struct DPIMemArrayDim {
 }
 
 impl DPIMemArrayDim {
-    const fn row(&self, idx: usize) -> usize {
+    pub(super) const fn row(&self, idx: usize) -> usize {
         idx / self.cols
     }
-    const fn col(&self, idx: usize) -> usize {
+    pub(super) const fn col(&self, idx: usize) -> usize {
         idx % self.cols
     }
     const fn depth(&self) -> usize {
@@ -40,19 +40,28 @@ impl DPIMemArray {
     const fn idx_array(&self, offset: usize) -> usize {
         offset / self.width
     }
-    const fn idx_byte(&self, offset: usize) -> usize {
+    pub(super) const fn idx_byte(&self, offset: usize) -> usize {
         offset & (self.width.next_power_of_two() - 1)
     }
-    const fn depth(&self) -> usize {
+    pub(super) const fn depth(&self) -> usize {
         self.dim.depth()
     }
-    const fn row(&self, offset: usize) -> usize {
+    pub(super) const fn row(&self, offset: usize) -> usize {
         self.dim.row(self.idx_array(offset))
     }
-    const fn col(&self, offset: usize) -> usize {
+    pub(super) const fn col(&self, offset: usize) -> usize {
         self.dim.col(self.idx_array(offset))
     }
-    fn array_hdl_path(&self, row: usize) -> String {
+    pub(super) const fn row_count(&self) -> usize {
+        self.dim.rows
+    }
+    pub(super) const fn row_depth(&self) -> usize {
+        self.dim.cols
+    }
+    pub(super) const fn row_size(&self) -> usize {
+        self.dim.cols * self.width
+    }
+    pub(super) fn array_hdl_path(&self, row: usize) -> String {
         if self.dim.rows > 1 {
             format!("{}[{}]", self.path, row)
         } else {
@@ -214,7 +223,7 @@ impl MBShareMemBlock for DPIShareMem {
 
 impl MBShareMem for DPIShareMem {
     fn write(&mut self, addr: MBPtrT, data: &[u8]) -> usize {
-        if data.len() == 0 {
+        if data.is_empty() {
             return 0;
         }
         let len = if self.in_range((addr as usize + data.len() - 1) as MBPtrT) {
@@ -229,7 +238,7 @@ impl MBShareMem for DPIShareMem {
         }
     }
     fn read(&self, addr: MBPtrT, data: &mut [u8]) -> usize {
-        if data.len() == 0 {
+        if data.is_empty() {
             return 0;
         }
         let len = if self.in_range((addr as usize + data.len() - 1) as MBPtrT) {
@@ -336,7 +345,7 @@ pub struct DPIBankedShareMem {
     size: usize,
     bank_width: usize,
     bank_depth: usize,
-    banks: Vec<Vec<Arc<DPIMemArray>>>,
+    pub(super) banks: Vec<Vec<Arc<DPIMemArray>>>,
 }
 
 impl DPIBankedShareMem {
@@ -643,6 +652,14 @@ impl MBShareMemParser for DPIShareMemParser {
                 .check()
             }
         } else {
+            #[cfg(feature = "mem_static")]
+            {
+                return Err(format!(
+                    "{} error: mem_static does not support blackbox memory!",
+                    key
+                ));
+            }
+            #[cfg(not(feature = "mem_static"))]
             DPIShareMem::BlackBox(DPIBlackBoxShareMem::new(key.to_string(), base, size)).check()
         }?;
         mem.init(&init_method);
