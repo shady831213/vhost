@@ -9,12 +9,44 @@ pub mod rpcs;
 pub mod sockets;
 use std::collections::HashMap;
 use std::future::Future;
+use std::path::Path;
 use std::sync::Arc;
 use std::sync::Mutex;
 
 pub type MemSpaces = HashMap<String, Arc<Mutex<DPIShareMemSpace>>>;
 pub type FileSyses = HashMap<String, Box<dyn MBFileOpener>>;
 pub type VHostMb = MBChannelShareMemSys<DPIShareMemSpace>;
+
+pub struct MailboxInitPaths<P1: AsRef<Path>, P2: AsRef<Path>> {
+    pub mem_cfg_file: P1,
+    pub mailbox_cfg_file: P2,
+}
+
+pub fn mailbox_init_with_paths<P1: AsRef<Path>, P2: AsRef<Path>>(
+    paths: MailboxInitPaths<P1, P2>,
+) -> Result<VHostMb, String> {
+    let mailbox_cfg =
+        std::fs::read_to_string(paths.mailbox_cfg_file.as_ref()).map_err(|e| e.to_string())?;
+    mailbox_init_with_config(paths.mem_cfg_file, &mailbox_cfg)
+}
+
+pub fn mailbox_init_with_config<P: AsRef<Path>>(
+    mem_cfg_file: P,
+    mailbox_cfg: &str,
+) -> Result<VHostMb, String> {
+    #[cfg(feature = "mem_static")]
+    clear_static_mems();
+    let mem_cfg_file = mem_cfg_file
+        .as_ref()
+        .to_str()
+        .ok_or_else(|| format!("invalid mem cfg path {}", mem_cfg_file.as_ref().display()))?;
+    let spaces = MBShareMemSpaceBuilder::<DPIShareMem, DPIShareMemParser>::new(mem_cfg_file)?
+        .build_shared()?
+        .build_spaces()?;
+    MBChannelShareMemBuilder::<DPIShareMemSpace>::from_str(mailbox_cfg, spaces)?
+        .cfg_channels()
+        .map(MBChannelShareMemBuilder::build)
+}
 
 pub fn mailbox_init<
     F1: Fn(&MemSpaces) -> Result<(), String>,
@@ -25,6 +57,8 @@ pub fn mailbox_init<
     special_fs_cb: F2,
     virtual_fs_cb: F3,
 ) -> MBChannelShareMemSys<DPIShareMemSpace> {
+    #[cfg(feature = "mem_static")]
+    clear_static_mems();
     let spaces = {
         MBShareMemSpaceBuilder::<DPIShareMem, DPIShareMemParser>::new(
             &env::var("MEM_CFG_FILE").unwrap(),
