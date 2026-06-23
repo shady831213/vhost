@@ -4,7 +4,12 @@ use super::common::{
 };
 use lazy_static::lazy_static;
 use mailbox_rs::{mb_rpcs::*, mb_std::*};
+use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
+
+mod static_snapshot;
+pub use static_snapshot::StaticMemRange;
+use static_snapshot::{collect_valid_ranges, dense_data};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StaticMemDescriptor {
@@ -18,13 +23,14 @@ pub trait StaticMemSink {
         &mut self,
         descriptor: &StaticMemDescriptor,
         data: &[u8],
+        valid_ranges: &[StaticMemRange],
     ) -> Result<(), String>;
 }
 
 #[derive(Clone, Debug)]
 struct StaticMemBuffer {
     descriptor: StaticMemDescriptor,
-    data: Vec<u8>,
+    data: BTreeMap<usize, u8>,
 }
 
 lazy_static! {
@@ -40,7 +46,9 @@ pub fn clear_static_mems() {
 pub fn flush_static_mems<S: StaticMemSink>(sink: &mut S) -> Result<(), String> {
     let snapshots = STATIC_MEMS.lock().map_err(|e| e.to_string())?.clone();
     for snapshot in snapshots.iter() {
-        sink.write_static_mem(&snapshot.descriptor, &snapshot.data)?;
+        let valid_ranges = collect_valid_ranges(&snapshot.data);
+        let data = dense_data(&snapshot.descriptor, &snapshot.data);
+        sink.write_static_mem(&snapshot.descriptor, &data, &valid_ranges)?;
     }
     Ok(())
 }
@@ -56,7 +64,7 @@ fn register_instance(path: String, width: usize, depth: usize) {
         }
         mems.push(StaticMemBuffer {
             descriptor: StaticMemDescriptor { path, width, depth },
-            data: vec![0; width * depth],
+            data: BTreeMap::new(),
         });
     }
 }
@@ -82,10 +90,10 @@ fn write_instance_locked(
     }) else {
         return false;
     };
-    if offset >= mem.data.len() {
+    if offset >= mem.descriptor.width * mem.descriptor.depth {
         return false;
     }
-    mem.data[offset] = byte;
+    mem.data.insert(offset, byte);
     true
 }
 
@@ -101,7 +109,10 @@ fn read_instance_locked(
             && mem.descriptor.width == width
             && mem.descriptor.depth == depth
     })?;
-    mem.data.get(offset).copied()
+    if offset >= mem.descriptor.width * mem.descriptor.depth {
+        return None;
+    }
+    Some(mem.data.get(&offset).copied().unwrap_or(0))
 }
 
 fn array_offset(array: &DPIMemArray, offset: usize) -> (String, usize) {
@@ -227,5 +238,25 @@ impl DPIShareMem {
             DPIShareMem::Direct(mem) => register_array(&mem.array),
             DPIShareMem::Banked(mem) => register_banked(mem),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{read_instance_locked, StaticMemBuffer, StaticMemDescriptor};
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn read_instance_locked_rejects_offsets_past_instance_end() {
+        let mems = [StaticMemBuffer {
+            descriptor: StaticMemDescriptor {
+                path: "dut.mem".to_string(),
+                width: 4,
+                depth: 4,
+            },
+            data: BTreeMap::new(),
+        }];
+
+        assert_eq!(None, read_instance_locked(&mems, "dut.mem", 4, 4, 16));
     }
 }

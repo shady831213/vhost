@@ -1,10 +1,18 @@
 use super::common::{DPIShareMem, DPIShareMemParser};
-use super::static_mem::{flush_static_mems, StaticMemDescriptor, StaticMemSink};
+use super::static_mem::{flush_static_mems, StaticMemDescriptor, StaticMemRange, StaticMemSink};
 use mailbox_rs::mb_std::*;
 
 #[derive(Default)]
 struct CaptureSink {
-    entries: Vec<(String, usize, usize, Vec<u8>)>,
+    entries: Vec<CaptureEntry>,
+}
+
+struct CaptureEntry {
+    path: String,
+    width: usize,
+    depth: usize,
+    data: Vec<u8>,
+    valid_ranges: Vec<StaticMemRange>,
 }
 
 impl StaticMemSink for CaptureSink {
@@ -12,13 +20,15 @@ impl StaticMemSink for CaptureSink {
         &mut self,
         descriptor: &StaticMemDescriptor,
         data: &[u8],
+        valid_ranges: &[StaticMemRange],
     ) -> Result<(), String> {
-        self.entries.push((
-            descriptor.path.clone(),
-            descriptor.width,
-            descriptor.depth,
-            data.to_vec(),
-        ));
+        self.entries.push(CaptureEntry {
+            path: descriptor.path.clone(),
+            width: descriptor.width,
+            depth: descriptor.depth,
+            data: data.to_vec(),
+            valid_ranges: valid_ranges.to_vec(),
+        });
         Ok(())
     }
 }
@@ -42,11 +52,15 @@ radio_cim0:
     let entry = sink
         .entries
         .iter()
-        .find(|entry| entry.0 == "dut.mem")
+        .find(|entry| entry.path == "dut.mem")
         .unwrap();
-    assert_eq!(4, entry.1);
-    assert_eq!(4, entry.2);
-    assert_eq!(&[0, 0, 1, 2, 3, 0, 0, 0], &entry.3[..8]);
+    assert_eq!(4, entry.width);
+    assert_eq!(4, entry.depth);
+    assert_eq!(&[0, 0, 1, 2, 3, 0, 0, 0], &entry.data[..8]);
+    assert_eq!(
+        vec![StaticMemRange { offset: 2, len: 3 }],
+        entry.valid_ranges
+    );
 }
 
 #[test]
@@ -160,6 +174,10 @@ fn parse_mem(mem: &str) -> DPIShareMem {
 }
 
 fn assert_static_prefix(sink: &CaptureSink, path: &str, expected: &[u8]) {
-    let entry = sink.entries.iter().find(|entry| entry.0 == path).unwrap();
-    assert_eq!(expected, &entry.3[..expected.len()]);
+    let entry = sink
+        .entries
+        .iter()
+        .find(|entry| entry.path == path)
+        .unwrap();
+    assert_eq!(expected, &entry.data[..expected.len()]);
 }

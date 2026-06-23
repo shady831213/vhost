@@ -99,6 +99,10 @@ Memory YAML supports direct memories, banked memories, optional `array_dims`, an
 optional initialization metadata. Widths in YAML are bits; internal memory widths
 are bytes.
 
+For callers that already have mailbox configuration text, `mailbox_init_with_config`
+accepts a memory config path plus mailbox YAML string and builds the same mailbox
+system without reading `MAILBOX_CFG_FILE` from the environment.
+
 ## Static Memory Export
 
 Enable `mem_static` when a downstream tool wants memory contents as raw static
@@ -116,6 +120,7 @@ impl StaticMemSink for Sink {
         &mut self,
         descriptor: &StaticMemDescriptor,
         data: &[u8],
+        _valid_ranges: &[vhost::mem::StaticMemRange],
     ) -> Result<(), String> {
         println!(
             "{}: width={} depth={} bytes={}",
@@ -137,6 +142,8 @@ fn export_static_mems() -> Result<(), String> {
 `mem_static` intentionally does not choose a file layout, filename convention,
 hex/bin format, or output directory. `BlackBox` memories are rejected by the
 parser under `mem_static`; static export requires HDL instance paths.
+The `valid_ranges` argument reports which byte ranges were actually written,
+allowing downstream tools to distinguish ELF-backed bytes from unwritten gaps.
 
 ## Build Assets
 
